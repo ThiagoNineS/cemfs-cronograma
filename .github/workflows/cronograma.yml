@@ -1,0 +1,44 @@
+name: Gerar Cronograma CEMFS
+
+# Quando rodar:
+#   - Toda segunda às 9h UTC (= 6h Brasília) automaticamente
+#   - Manualmente quando alguém clicar "Run workflow" na aba Actions
+on:
+  schedule:
+    - cron: '0 9 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: write  # necessário pra commitar o xlsx atualizado de volta no repo
+
+jobs:
+  gerar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Configurar Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências
+        run: pip install -r requirements.txt
+
+      - name: Rodar gerador
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: python gerador.py
+
+      - name: Commitar xlsx atualizado se mudou
+        run: |
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add CRONOGRAMA_A3_CEMFS.xlsx
+          if git diff --staged --quiet; then
+            echo "Nenhuma mudança no cronograma."
+          else
+            git commit -m "Atualiza cronograma — $(date -u +'%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
